@@ -10,6 +10,10 @@ networks:
 
 volumes:
   certs:
+  # Shared storage both app servers write audit records to (an NFS share in
+  # real life). Small on purpose so the disk-full fault can fill it.
+  crm-data:
+    driver_opts: { type: tmpfs, device: tmpfs, o: "size=48m,uid=0" }
 
 x-logging: &logging
   logging:
@@ -63,6 +67,7 @@ services:
     environment:
       APP_NAME: crm-app-01
       DATABASE_URL: postgresql://crm:${DB_PASSWORD}@172.30.0.21:5432/crm
+    volumes: ["crm-data:/var/lib/crm"]
     networks:
       lab: { ipv4_address: 172.30.0.11 }
     depends_on:

@@ -11,7 +11,7 @@ RUNTIME="$LAB/runtime"
 STATE="$RUNTIME/faults"
 mkdir -p "$STATE"
 
-FAULTS=(db-disk-full app-crash dns-stale cert-expired db-connections)
+FAULTS=(disk-full app-crash dns-stale cert-expired db-connections)
 
 dc() { docker compose -f "$LAB/compose.yaml" --env-file "$LAB/.env" "$@"; }
 cid() { dc ps -a -q "$1"; }
@@ -34,16 +34,13 @@ container_log() { # write a line into a container's stdout so it shows in its lo
 
 inject() {
   case "$1" in
-    db-disk-full)
-      change "backup-01: rotated NFS export for /mnt/backup (CHG-2236)"
-      change "crm-app-02: deployed crm-api 4.12.1 (CHG-2240)"
-      # Fill the data volume with "unarchived WAL", then use up the free space
-      # left in the customers table, so every new row needs space that isn't there.
-      docker exec -u postgres "$(cid db)" sh -c '
-        d=/var/lib/postgresql/data/archive_staging; mkdir -p $d; i=0
-        while dd if=/dev/zero of=$d/00000001000000000000$(printf %04X $i) bs=1M count=8 2>/dev/null; do i=$((i+1)); done
-        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) WARNING: archive command failed with exit code 1: cp: cannot create /mnt/backup/wal: Stale file handle" > /proc/1/fd/2
-        for n in 1 2 3; do psql -U crm -d crm -q -c "INSERT INTO customers (name, company) SELECT md5(g::text), md5(g::text) FROM generate_series(1, 20000) g" >/dev/null 2>&1; done
+    disk-full)
+      change "crm-app-02: set log level to DEBUG to troubleshoot slow exports (CHG-2242)"
+      change "db-01: moved finance monthly report to business hours (CHG-2238)"
+      # A runaway debug log fills the shared storage both app servers write to.
+      docker exec "$(cid app2)" sh -c '
+        f=/var/lib/crm/debug-export-trace.log
+        while dd if=/dev/urandom bs=1M count=4 2>/dev/null | base64 >> $f; do :; done
         true'
       ;;
     app-crash)
@@ -75,9 +72,8 @@ inject() {
 
 restore() {
   case "$1" in
-    db-disk-full)
-      docker exec "$(cid db)" sh -c 'rm -rf /var/lib/postgresql/data/archive_staging' || true
-      docker exec "$(cid db)" psql -U crm -d crm -q -c "DELETE FROM customers WHERE name ~ '^[0-9a-f]{32}\$'" >/dev/null 2>&1 || true
+    disk-full)
+      docker exec "$(cid app2)" sh -c 'rm -f /var/lib/crm/debug-export-trace.log' || true
       ;;
     app-crash)
       docker start "$(cid app1)" >/dev/null

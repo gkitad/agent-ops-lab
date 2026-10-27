@@ -12,11 +12,22 @@ import psycopg
 NAME = os.environ.get("APP_NAME", "crm-app")
 DSN = os.environ["DATABASE_URL"]
 VERSION = "4.12.0"
+AUDIT_DIR = "/var/lib/crm/audit"
 
 
 def log(level, msg):
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"{ts} {level} crm-api[{NAME}]: {msg}", flush=True)
+
+
+def audit(event):
+    """Every change is recorded on shared storage before it's committed."""
+    os.makedirs(AUDIT_DIR, exist_ok=True)
+    line = f"{datetime.now(timezone.utc).isoformat()} {NAME} {event}\n"
+    with open(os.path.join(AUDIT_DIR, "audit.log"), "a") as f:
+        f.write(line)
+        f.flush()
+        os.fsync(f.fileno())
 
 
 def db():
@@ -85,6 +96,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(length) or b"{}")
+            try:
+                audit(f"create customer name={str(body.get('name', ''))[:40]!r}")
+            except OSError as e:
+                log("ERROR", f"could not write audit record to {AUDIT_DIR}: {e}")
+                self.send(500, {"error": "Internal Server Error", "server": NAME})
+                return 500
             with db() as conn:
                 row = conn.execute(
                     "INSERT INTO customers (name, company) VALUES (%s, %s) RETURNING id",

@@ -22,7 +22,7 @@ Built by [Anthony Jaimez](https://portfolio-eosin-delta-24.vercel.app/).
 
 | Fault | What actually happens |
 | --- | --- |
-| `db-disk-full` | The database's data volume is filled until writes fail |
+| `disk-full` | A runaway debug log fills the storage both app servers write audit records to; saves fail |
 | `app-crash` | crm-app-01's process is killed and stays down; half the requests return 502 |
 | `dns-stale` | `crm.lab.internal` is repointed to a retired address |
 | `cert-expired` | lb-01 starts serving an expired certificate |
