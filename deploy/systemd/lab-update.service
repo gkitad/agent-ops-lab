@@ -1,0 +1,7 @@
+[Unit]
+Description=Deploy new commits of Agent Ops Lab
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/agent-ops-lab/deploy/update.sh

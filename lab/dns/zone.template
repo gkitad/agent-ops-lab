@@ -1,0 +1,10 @@
+$ORIGIN lab.internal.
+$TTL 30
+@       IN SOA ns.lab.internal. ops.lab.internal. ( SERIAL 60 30 600 30 )
+        IN NS  ns.lab.internal.
+ns      IN A   172.30.0.53
+crm     IN A   CRM_IP
+lb-01   IN A   172.30.0.40
+crm-app-01 IN A 172.30.0.11
+crm-app-02 IN A 172.30.0.12
+db-01   IN A   172.30.0.21

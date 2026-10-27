@@ -1,0 +1,12 @@
+lab.internal:53 {
+    file /zones/lab.internal.db {
+        reload 3s
+    }
+    log
+    errors
+}
+.:53 {
+    forward . 1.1.1.1 8.8.8.8
+    cache 30
+    errors
+}
