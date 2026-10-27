@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -21,11 +22,14 @@ def log(level, msg):
 
 
 def audit(event):
-    """Every change is recorded on shared storage before it's committed."""
-    os.makedirs(AUDIT_DIR, exist_ok=True)
-    line = f"{datetime.now(timezone.utc).isoformat()} {NAME} {event}\n"
-    with open(os.path.join(AUDIT_DIR, "audit.log"), "a") as f:
-        f.write(line)
+    """Every change is recorded on shared storage, one file per record,
+    before it's committed to the database."""
+    now = datetime.now(timezone.utc)
+    folder = os.path.join(AUDIT_DIR, now.strftime("%Y-%m-%d"))
+    os.makedirs(folder, exist_ok=True)
+    record = json.dumps({"at": now.isoformat(), "server": NAME, "event": event})
+    with open(os.path.join(folder, f"{uuid.uuid4().hex}.json"), "w") as f:
+        f.write(record)
         f.flush()
         os.fsync(f.fileno())
 
