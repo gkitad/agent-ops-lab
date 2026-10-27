@@ -104,7 +104,7 @@ def change_call(ctx: Context, tool: str, args: dict, reason: str, validate: Call
     if approval["status"] == "expired":
         out = f"No decision from the operator within {int(APPROVAL_TIMEOUT)} s, so the change was not made: {summary}."
     elif approval["status"] == "denied":
-        note = f" Note: {approval['note']}" if approval.get("note") else ""
+        note = f" Operator note: {approval['note'].rstrip('.')}." if approval.get("note") else ""
         out = f"DENIED by {approval['decidedBy']}: {summary}. The change was not made.{note} Do not retry the same change; reconsider the diagnosis."
     else:
         start = time.monotonic()
