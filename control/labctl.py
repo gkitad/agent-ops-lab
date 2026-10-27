@@ -4,6 +4,9 @@ GET  /                 human-readable status page
 GET  /api/status       containers, active faults, synthetic check, last deploy
 GET  /api/selftest     inject every fault in turn, check it breaks the CRM,
                        restore it, check it recovers (one run at a time)
+GET  /api/mcptest      run the MCP server's end-to-end test (opsmcp/selftest.py):
+                       auth, command policy, approvals, budgets, and fixing all
+                       five faults through MCP tools
 
 Stage 1 exposes no way to inject a single fault from outside; the agent API
 in stage 3 adds that behind rate limits.
@@ -23,8 +26,13 @@ FAULT = os.path.join(LAB, "faults", "fault.sh")
 DEPLOY_LOG = "/var/log/agent-ops-lab/deploy.log"
 SELFTEST_FILE = "/var/lib/agent-ops-lab/selftest.json"
 
+MCPTEST_FILE = "/var/lib/agent-ops-lab/mcptest.json"
+VENV_PY = os.path.join(ROOT, ".venv", "bin", "python")
+
 selftest_lock = threading.Lock()
 selftest_state = {"running": False, "started": None, "results": None}
+mcptest_lock = threading.Lock()
+mcptest_state = {"running": False, "started": None, "report": None}
 
 
 def sh(args, timeout=60):
@@ -78,16 +86,44 @@ def status():
         "faults": [f for f in faults.splitlines() if f],
         "synthetic": synthetic(),
         "deployLog": tail(DEPLOY_LOG),
-        "selftest": selftest_state if selftest_state["results"] or selftest_state["running"] else read_selftest(),
+        "services": {name: sh(["systemctl", "is-active", name])[1] for name in ("opsmcp", "labctl", "lab-update.timer")},
+        "selftest": selftest_state if selftest_state["results"] or selftest_state["running"] else read_json(SELFTEST_FILE),
+        "mcptest": mcptest_state if mcptest_state["report"] or mcptest_state["running"] else read_json(MCPTEST_FILE),
     }
 
 
-def read_selftest():
+def read_json(path):
     try:
-        with open(SELFTEST_FILE) as f:
+        with open(path) as f:
             return json.load(f)
     except (OSError, ValueError):
         return None
+
+
+def run_mcptest():
+    try:
+        stderr = ""
+        try:
+            p = subprocess.run([VENV_PY, os.path.join(ROOT, "opsmcp", "selftest.py")], capture_output=True, text=True, timeout=900)
+            stderr = p.stderr
+            report = json.loads(p.stdout.strip().splitlines()[-1])
+        except Exception as e:
+            report = {"error": f"{type(e).__name__}: {e}", "stderr": stderr[-2000:]}
+        record = {"running": False, "started": mcptest_state["started"], "finished": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "report": report}
+        with open(MCPTEST_FILE, "w") as f:
+            json.dump(record, f, indent=1)
+        mcptest_state.update(record)
+    finally:
+        mcptest_state["running"] = False
+        mcptest_lock.release()
+
+
+def start_mcptest():
+    if selftest_state["running"] or not mcptest_lock.acquire(blocking=False):
+        return False
+    mcptest_state.update({"running": True, "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "report": None})
+    threading.Thread(target=run_mcptest, daemon=True).start()
+    return True
 
 
 def run_selftest():
@@ -129,7 +165,7 @@ def _selftest():
 
 
 def start_selftest():
-    if not selftest_lock.acquire(blocking=False):
+    if mcptest_state["running"] or not selftest_lock.acquire(blocking=False):
         return False
     selftest_state.update({"running": True, "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "results": None})
     threading.Thread(target=run_selftest, daemon=True).start()
@@ -154,6 +190,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, status())
         if self.path == "/api/selftest":
             started = start_selftest()
+            return self.send(202 if started else 409, {"started": started, "note": "poll /api/status for results"})
+        if self.path == "/api/mcptest":
+            started = start_mcptest()
             return self.send(202 if started else 409, {"started": started, "note": "poll /api/status for results"})
         if self.path == "/":
             s = status()

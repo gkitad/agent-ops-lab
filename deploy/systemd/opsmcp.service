@@ -1,0 +1,14 @@
+[Unit]
+Description=Agent Ops Lab MCP server (127.0.0.1:8765)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Environment=LAB_ROOT=/opt/agent-ops-lab
+WorkingDirectory=/opt/agent-ops-lab/opsmcp
+ExecStart=/opt/agent-ops-lab/.venv/bin/python /opt/agent-ops-lab/opsmcp/server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

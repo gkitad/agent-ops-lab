@@ -61,7 +61,7 @@ inject() {
       ;;
     db-connections)
       change "reporting: new hourly sales export job enabled (CHG-2241)"
-      docker exec -d "$(cid db)" sh -c 'for i in $(seq 1 45); do psql -U crm -d crm -q -c "/* sales-export */ SELECT pg_sleep(86400)" >/dev/null 2>&1 & done; wait'
+      docker exec -d "$(cid db)" sh -c 'for i in $(seq 1 45); do psql -U reporting -d crm -q -c "/* sales-export */ SELECT pg_sleep(86400)" >/dev/null 2>&1 & done; wait'
       sleep 3
       ;;
     *) echo "unknown fault: $1" >&2; exit 2 ;;
