@@ -77,6 +77,7 @@ restore() {
   case "$1" in
     db-disk-full)
       docker exec "$(cid db)" sh -c 'rm -rf /var/lib/postgresql/data/archive_staging' || true
+      docker exec "$(cid db)" psql -U crm -d crm -q -c "DELETE FROM customers WHERE name ~ '^[0-9a-f]{32}\$'" >/dev/null 2>&1 || true
       ;;
     app-crash)
       docker start "$(cid app1)" >/dev/null
