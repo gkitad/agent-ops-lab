@@ -29,7 +29,7 @@ write_zone() { # $1 = IP for crm.lab.internal
 }
 
 container_log() { # write a line into a container's stdout so it shows in its logs
-  docker exec "$(cid "$1")" sh -c "echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) $2\" > /proc/1/fd/1" || true
+  docker exec -u 0 "$(cid "$1")" sh -c "echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) $2\" > /proc/1/fd/1" || true
 }
 
 inject() {
@@ -37,10 +37,13 @@ inject() {
     db-disk-full)
       change "backup-01: rotated NFS export for /mnt/backup (CHG-2236)"
       change "crm-app-02: deployed crm-api 4.12.1 (CHG-2240)"
-      docker exec "$(cid db)" sh -c '
+      # Fill the data volume with "unarchived WAL", then use up the free space
+      # left in the customers table, so every new row needs space that isn't there.
+      docker exec -u postgres "$(cid db)" sh -c '
         d=/var/lib/postgresql/data/archive_staging; mkdir -p $d; i=0
-        while dd if=/dev/zero of=$d/00000001000000000000$(printf %04X $i) bs=1M count=16 2>/dev/null; do i=$((i+1)); done
-        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) WARNING: archive command failed: cp: cannot create /mnt/backup/wal: Stale file handle" > /proc/1/fd/2
+        while dd if=/dev/zero of=$d/00000001000000000000$(printf %04X $i) bs=1M count=8 2>/dev/null; do i=$((i+1)); done
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) WARNING: archive command failed with exit code 1: cp: cannot create /mnt/backup/wal: Stale file handle" > /proc/1/fd/2
+        for n in 1 2 3; do psql -U crm -d crm -q -c "INSERT INTO customers (name, company) SELECT md5(g::text), md5(g::text) FROM generate_series(1, 20000) g" >/dev/null 2>&1; done
         true'
       ;;
     app-crash)
@@ -61,7 +64,7 @@ inject() {
       ;;
     db-connections)
       change "reporting: new hourly sales export job enabled (CHG-2241)"
-      docker exec -d "$(cid db)" sh -c 'for i in $(seq 1 36); do psql -U crm -d crm -q -c "/* sales-export */ SELECT pg_sleep(86400)" >/dev/null 2>&1 & done; wait'
+      docker exec -d "$(cid db)" sh -c 'for i in $(seq 1 45); do psql -U crm -d crm -q -c "/* sales-export */ SELECT pg_sleep(86400)" >/dev/null 2>&1 & done; wait'
       sleep 3
       ;;
     *) echo "unknown fault: $1" >&2; exit 2 ;;
