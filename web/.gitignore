@@ -3,3 +3,5 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 .vercel
+out/
+AGENTS.md

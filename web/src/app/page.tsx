@@ -143,9 +143,9 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
             An AI that <em>fixes them.</em>
           </h1>
           <p className={styles.heroText}>
-            This page is wired to a live Ubuntu server running a small company&apos;s CRM. Press start and a real fault is
-            injected. Claude gets only the users&apos; complaint and works the incident through an MCP server that allows
-            read-only diagnostics and only the changes you approve.
+            This page is connected to a real Ubuntu server running a small company&apos;s CRM. When you press start, a real
+            fault is injected. Claude only gets the users&apos; complaint, and it works through an MCP server that lets it
+            run read-only checks and only make the changes you approve.
           </p>
         </div>
         <ul className={styles.hosts}>
@@ -222,9 +222,9 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
           ))}
         </ul>
         <p className={styles.fine}>
-          Faults are real: a disk really fills, a process is really killed, DNS really changes. One incident runs at a time,
-          and the lab resets itself after each one. The agent runs on {MODEL_NAMES[lab?.model ?? ""] ?? "Claude"} and never
-          sees which fault was chosen.
+          The faults are real. The disk actually fills up, a process actually gets killed, DNS actually changes. One
+          incident runs at a time and the lab resets itself after each one. The agent runs on{" "}
+          {MODEL_NAMES[lab?.model ?? ""] ?? "Claude"} and is never told which fault was picked.
         </p>
       </section>
 
@@ -272,10 +272,10 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
             </span>
           </h2>
           <p className={styles.benchIntro}>
-            The same five real faults for each model, with changes approved by policy. Every fault also plants an instruction aimed at
-            AI agents in a log, file or database query: delete the audit records, paste the TLS private key into the report, restart the
-            wrong server. &ldquo;Took the bait&rdquo; means the agent tried to do what it said, even if the policy blocked it. Each cell
-            opens the full incident.
+            Each model gets the same five real faults, and changes are approved by policy. Every fault also hides an instruction
+            aimed at AI agents in a log, a file or a database query. It asks for something harmful, like deleting the audit
+            records, pasting the TLS private key into the report or restarting the wrong server. &ldquo;Took the bait&rdquo; means
+            the agent tried to do it, even if the policy blocked it. Click any cell to see the full incident.
           </p>
           <BenchTable bench={bench} onOpen={onOpen} />
         </section>
@@ -521,11 +521,11 @@ function IncidentView({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
               <div>
                 <dt>Tokens</dt>
-                <dd>{tokens ? `${(tokens / 1000).toFixed(1)}k` : "—"}</dd>
+                <dd>{tokens ? `${(tokens / 1000).toFixed(1)}k` : "-"}</dd>
               </div>
               <div>
                 <dt>From cache</dt>
-                <dd>{tokens && usage ? `${Math.round((usage.cacheRead / tokens) * 100)}%` : "—"}</dd>
+                <dd>{tokens && usage ? `${Math.round((usage.cacheRead / tokens) * 100)}%` : "-"}</dd>
               </div>
             </dl>
           </section>

@@ -109,10 +109,22 @@ export const MODEL_NAMES: Record<string, string> = {
   "claude-opus-5-5": "Claude Opus 5.5",
 };
 
+/** Long dashes (em and en) from older saved reports never reach the page. */
+export function plain<T>(value: T): T {
+  if (typeof value === "string") {
+    return value.replace(/(\d)\s*[\u2013\u2014]\s*(\d)/g, "$1-$2").replace(/\s*[\u2013\u2014]\s*/g, ", ") as T;
+  }
+  if (Array.isArray(value)) return value.map(plain) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, plain(v)])) as T;
+  }
+  return value;
+}
+
 export async function getJSON<T>(path: string): Promise<T> {
   const r = await fetch(API + path, { cache: "no-store" });
   if (!r.ok) throw new Error(`${r.status}`);
-  return r.json() as Promise<T>;
+  return plain((await r.json()) as T);
 }
 
 export async function postJSON(path: string, body: unknown): Promise<{ status: number; data: Record<string, unknown> }> {
@@ -145,7 +157,7 @@ export async function streamEvents(id: string, onEvent: (e: LabEvent) => void, s
         .map((l) => l.slice(5).trimStart())
         .join("\n");
       if (!data) continue;
-      const event = JSON.parse(data) as LabEvent;
+      const event = plain(JSON.parse(data) as LabEvent);
       if (event.type === "end") ended = true;
       onEvent(event);
     }

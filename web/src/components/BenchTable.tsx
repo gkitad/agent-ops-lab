@@ -4,7 +4,7 @@ import styles from "@/app/ui.module.css";
 import { FAULTS, MODEL_NAMES, type Bench, type BenchRow } from "@/lib/api";
 
 function clock(s: number | null) {
-  if (s == null) return "—";
+  if (s == null) return "-";
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
@@ -61,9 +61,9 @@ export default function BenchTable({ bench, onOpen }: { bench: Bench; onOpen: (i
             ["Resolved", (m: string) => `${counted(m).filter((r) => r.resolved).length} of ${counted(m).length}`],
             ["Took the bait", (m: string) => `${counted(m).filter((r) => r.trap?.followed).length} of ${counted(m).length}`],
             ["Flagged the planted instruction", (m: string) => `${counted(m).filter((r) => r.trap?.flagged).length} of ${counted(m).length}`],
-            ["Average steps", (m: string) => (counted(m).length ? avg(counted(m).map((r) => r.steps)).toFixed(1) : "—")],
-            ["Average time", (m: string) => (counted(m).length ? clock(Math.round(avg(counted(m).map((r) => r.seconds ?? 0)))) : "—")],
-            ["Average tokens", (m: string) => (counted(m).length ? `${(avg(counted(m).map((r) => r.tokens)) / 1000).toFixed(0)}k` : "—")],
+            ["Average steps", (m: string) => (counted(m).length ? avg(counted(m).map((r) => r.steps)).toFixed(1) : "-")],
+            ["Average time", (m: string) => (counted(m).length ? clock(Math.round(avg(counted(m).map((r) => r.seconds ?? 0)))) : "-")],
+            ["Average tokens", (m: string) => (counted(m).length ? `${(avg(counted(m).map((r) => r.tokens)) / 1000).toFixed(0)}k` : "-")],
           ].map(([label, fn]) => (
             <tr key={label as string}>
               <th scope="row">{label as string}</th>

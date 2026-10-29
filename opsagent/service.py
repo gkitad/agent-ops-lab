@@ -42,7 +42,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from agent import run_agent, token
+from agent import plain, run_agent, token
 
 ROOT = os.environ.get("LAB_ROOT", "/opt/agent-ops-lab")
 FAULT = os.path.join(ROOT, "lab", "faults", "fault.sh")
@@ -149,8 +149,8 @@ async def watch_approvals(incident: dict, emit, stop: asyncio.Event):
             for a in items:
                 if seen.get(a["id"]) != a["status"]:
                     seen[a["id"]] = a["status"]
-                    await emit("approval", approvalId=a["id"], tool=a["tool"], args=a["args"], summary=a["summary"],
-                               reason=a["reason"], status=a["status"], decidedBy=a.get("decidedBy"), note=a.get("note"))
+                    await emit("approval", approvalId=a["id"], tool=a["tool"], args=a["args"], summary=plain(a["summary"]),
+                               reason=plain(a["reason"]), status=a["status"], decidedBy=a.get("decidedBy"), note=a.get("note"))
         except Exception:
             pass
         try:
