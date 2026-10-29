@@ -6,6 +6,8 @@ GET  /api/selftest     inject every fault in turn, check it breaks the CRM,
                        restore it, check it recovers (one run at a time)
 GET  /api/keycheck     confirm the Anthropic API key in /etc/agent-ops-lab works
                        (reports only the HTTP status, never the key)
+POST /api/admin/incident  start an incident without the public rate limit
+                       (X-Admin-Key header; only its SHA-256 is in the repo)
 GET  /api/mcptest      run the MCP server's end-to-end test (opsmcp/selftest.py):
                        auth, command policy, approvals, budgets, and fixing all
                        five faults through MCP tools
@@ -14,6 +16,7 @@ Stage 1 exposes no way to inject a single fault from outside; the agent API
 in stage 3 adds that behind rate limits.
 """
 
+import fcntl
 import html
 import json
 import os
@@ -30,6 +33,8 @@ SELFTEST_FILE = "/var/lib/agent-ops-lab/selftest.json"
 
 MCPTEST_FILE = "/var/lib/agent-ops-lab/mcptest.json"
 VENV_PY = os.path.join(ROOT, ".venv", "bin", "python")
+
+LOCK_FILE = "/var/lib/agent-ops-lab/lab.lock"  # shared with the incident service: one user of the lab at a time
 
 selftest_lock = threading.Lock()
 selftest_state = {"running": False, "started": None, "results": None}
@@ -136,12 +141,34 @@ def run_mcptest():
         mcptest_state.update(record)
     finally:
         mcptest_state["running"] = False
+        lab_unlock(mcptest_state.pop("_fd"))
         mcptest_lock.release()
+
+
+def lab_lock():
+    """Take the lab for a self-test, or return None if an incident or test has it."""
+    fd = os.open(LOCK_FILE, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fd
+    except BlockingIOError:
+        os.close(fd)
+        return None
+
+
+def lab_unlock(fd):
+    fcntl.flock(fd, fcntl.LOCK_UN)
+    os.close(fd)
 
 
 def start_mcptest():
     if selftest_state["running"] or not mcptest_lock.acquire(blocking=False):
         return False
+    fd = lab_lock()
+    if fd is None:
+        mcptest_lock.release()
+        return False
+    mcptest_state["_fd"] = fd
     mcptest_state.update({"running": True, "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "report": None})
     threading.Thread(target=run_mcptest, daemon=True).start()
     return True
@@ -152,6 +179,7 @@ def run_selftest():
         _selftest()
     finally:
         selftest_state["running"] = False
+        lab_unlock(selftest_state.pop("_fd"))
         selftest_lock.release()
 
 
@@ -188,9 +216,40 @@ def _selftest():
 def start_selftest():
     if mcptest_state["running"] or not selftest_lock.acquire(blocking=False):
         return False
+    fd = lab_lock()
+    if fd is None:
+        selftest_lock.release()
+        return False
+    selftest_state["_fd"] = fd
     selftest_state.update({"running": True, "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "results": None})
     threading.Thread(target=run_selftest, daemon=True).start()
     return True
+
+
+ADMIN_HASH_FILE = os.path.join(ROOT, "control", "admin.sha256")
+
+
+def admin_ok(key: str) -> bool:
+    import hashlib
+    import hmac
+    try:
+        with open(ADMIN_HASH_FILE) as f:
+            expected = f.read().strip()
+    except OSError:
+        return False
+    return bool(key) and hmac.compare_digest(hashlib.sha256(key.encode()).hexdigest(), expected)
+
+
+def admin_incident(body: bytes):
+    import urllib.error
+    import urllib.request
+    req = urllib.request.Request("http://127.0.0.1:8090/api/incidents", data=body, method="POST",
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read() or b"{}")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -205,6 +264,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def do_POST(self):
+        if self.path == "/api/admin/incident":
+            if not admin_ok(self.headers.get("X-Admin-Key", "")):
+                return self.send(403, {"error": "forbidden"})
+            length = min(int(self.headers.get("Content-Length") or 0), 4096)
+            code, data = admin_incident(self.rfile.read(length) or b"{}")
+            return self.send(code, data)
+        self.send(404, {"error": "not found"})
 
     def do_GET(self):
         if self.path == "/api/status":
@@ -239,4 +307,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0", int(os.environ.get("PORT", "80"))), Handler).serve_forever()
+    ThreadingHTTPServer((os.environ.get("HOST", "127.0.0.1"), int(os.environ.get("PORT", "8080"))), Handler).serve_forever()
