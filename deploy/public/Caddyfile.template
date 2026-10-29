@@ -2,6 +2,7 @@
 # public IP via sslip.io (e.g. 138-197-164-83.sslip.io), so HTTPS works with a
 # real Let's Encrypt certificate and no domain purchase.
 #   /api/lab, /api/bench, /api/incidents*   incident service (agent)
+#   /t, /visits, /api/visits    portfolio visit counter
 #   /api/*, /status             labctl (status, self-tests)
 #   everything else             the web app (static export of web/)
 (routes) {
@@ -11,6 +12,10 @@
 		reverse_proxy 127.0.0.1:8090 {
 			flush_interval -1
 		}
+	}
+	@visits path /t /visits /api/visits
+	handle @visits {
+		reverse_proxy 127.0.0.1:8095
 	}
 	@labctl path /api/* /status
 	handle @labctl {

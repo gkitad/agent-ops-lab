@@ -123,3 +123,7 @@ What this shows and what it doesn't: with five single-cause faults, every model 
 - `labctl` (behind Caddy at `/status` and `/api/*`) shows status (`/api/status`) and runs a self-test (`/api/selftest`) that injects each fault, confirms the CRM breaks, restores it and confirms it recovers.
 - `opsmcp.service` runs the MCP server and `opsagent.service` the incident API; tokens are generated on the server in `/etc/agent-ops-lab` and never leave it. The Anthropic API key is placed there by hand.
 - Caddy (`deploy/public/Caddyfile.template`) gets a Let's Encrypt certificate for `<ip>.sslip.io`, so HTTPS works without buying a domain. If it fails to start, the deploy falls back to serving the status page on port 80.
+
+## Also on this droplet: a visit counter for my portfolio
+
+`visits/` is a small separate service that counts visits to my portfolio site. The page sends a beacon when it opens, when the visitor leaves (time on page, scroll depth) and when they click a link out (live demo, resume, GitHub). The service looks up the city and the network name from the IP with the free DB-IP Lite databases, then keeps only a salted hash of the IP. The dashboard at `/visits` needs a key; only the key's hash is in this repo.

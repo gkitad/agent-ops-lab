@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Portfolio visits</title>
+<style>
+  :root {
+    --paper: #ffffff;
+    --canary: #fff0a3;
+    --print: #1f3c9c;
+    --print-faint: rgba(31, 60, 156, 0.1);
+    --ink: #13151b;
+    --ink-soft: #4a4d57;
+    --rule: #c9cedc;
+    --home: #e7e8ec;
+    --cloud: #f6e1e1;
+    --cloud-ink: #8a1f24;
+    --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.45 var(--font); font-variant-numeric: tabular-nums; }
+  header.bar { background: var(--print); color: #fff; padding: 16px clamp(16px, 3vw, 40px); display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+  header.bar h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; }
+  header.bar p { margin: 0; opacity: 0.9; font-size: 0.9rem; }
+  main { max-width: 1320px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px) 64px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  main > *, .grid3 > * { min-width: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+  .seg { display: inline-flex; border: 1.5px solid var(--print); }
+  .seg button { border: 0; background: none; color: var(--print); font: 600 0.9rem var(--font); padding: 8px 14px; cursor: pointer; }
+  .seg button + button { border-left: 1.5px solid var(--print); }
+  .seg button[aria-pressed="true"] { background: var(--print); color: #fff; }
+  .seg button:focus-visible, .key button:focus-visible, label:focus-within { outline: 3px solid var(--print); outline-offset: 2px; }
+  label.check { display: inline-flex; gap: 8px; align-items: center; color: var(--ink-soft); }
+  .updated { margin-left: auto; color: var(--ink-soft); font-size: 0.85rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border: 1.5px solid var(--print); }
+  .tile { padding: 14px 16px; border-right: 1.5px solid var(--print); margin-right: -1.5px; }
+  .tile b { display: block; font-size: 2rem; line-height: 1.1; }
+  .tile span { color: var(--ink-soft); font-size: 0.85rem; }
+  section.box { border: 1.5px solid var(--print); }
+  section.box > h2 { margin: 0; padding: 10px 16px; background: var(--ink); color: #fff; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  section.box > .inner { padding: 16px; }
+  .note { color: var(--ink-soft); font-size: 0.85rem; margin: 8px 0 0; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+  ol.rank { list-style: none; margin: 0; padding: 0; }
+  ol.rank li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); align-items: center; }
+  ol.rank li:last-child { border-bottom: 0; }
+  ol.rank .meter { grid-column: 1 / -1; height: 6px; background: var(--print-faint); }
+  ol.rank .meter i { display: block; height: 100%; background: var(--print); border-radius: 0 3px 3px 0; }
+  .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 1px 7px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.03em; vertical-align: 1px; }
+  .badge.company { background: var(--print); color: #fff; }
+  .badge.home { background: var(--home); color: var(--ink-soft); }
+  .badge.cloud { background: var(--cloud); color: var(--cloud-ink); }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: 220px; overflow: visible; }
+  .tip { position: absolute; pointer-events: none; background: var(--ink); color: #fff; padding: 6px 10px; font-size: 0.85rem; white-space: nowrap; transform: translate(-50%, -110%); display: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-soft); background: var(--print-faint); position: sticky; top: 0; }
+  td small { display: block; color: var(--ink-soft); }
+  tr.company td:first-child { box-shadow: inset 4px 0 0 var(--print); }
+  .tablewrap { overflow-x: auto; }
+  .empty { padding: 28px 16px; color: var(--ink-soft); }
+  .key { display: grid; gap: 12px; max-width: 460px; padding: 24px; border: 1.5px solid var(--print); }
+  .key input { font: inherit; padding: 10px 12px; border: 1.5px solid var(--print); }
+  .key button { font: 700 1rem var(--font); padding: 10px 16px; background: var(--print); color: #fff; border: 0; cursor: pointer; justify-self: start; }
+  .error { color: var(--cloud-ink); font-weight: 600; }
+  @media (max-width: 900px) { .grid3 { grid-template-columns: minmax(0, 1fr); } .updated { margin-left: 0; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1>Portfolio visits</h1>
+  <p>portfolio-eosin-delta-24.vercel.app &middot; times in Central time</p>
+</header>
+<main id="app">
+  <p class="empty">Loading&hellip;</p>
+</main>
+
+<template id="keyForm">
+  <form class="key">
+    <strong>Dashboard key</strong>
+    <input name="k" type="password" autocomplete="current-password" required aria-label="Dashboard key">
+    <button>Open dashboard</button>
+    <p class="error" hidden></p>
+  </form>
+</template>
+
+<script>
+const TZ = "America/Chicago";
+const RANGES = [["1", "24 hours"], ["7", "7 days"], ["30", "30 days"], ["90", "90 days"]];
+const state = { days: "30", previews: false, data: null };
+
+let key = null;
+try {
+  const m = location.hash.match(/k=([^&]+)/);
+  if (m) { localStorage.setItem("visits-key", decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); }
+  key = localStorage.getItem("visits-key");
+} catch (e) {}
+
+const app = document.getElementById("app");
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const fmtTime = (ts) => new Date(ts * 1000).toLocaleString("en-US", { timeZone: TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const dayKey = (ts) => new Date(ts * 1000).toLocaleDateString("en-CA", { timeZone: TZ });
+const dur = (s) => (s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`);
+const place = (v) => [v.city, v.region, v.country].filter(Boolean).join(", ") || "Unknown";
+const KIND = { company: "Company network", home: "Home or mobile", cloud: "Cloud, likely a bot" };
+const badge = (k) => (k ? `<span class="badge ${k}">${esc(k === "cloud" ? "cloud" : k === "home" ? "home/mobile" : "company")}</span>` : "");
+
+function askKey(message) {
+  app.innerHTML = "";
+  const f = document.getElementById("keyForm").content.cloneNode(true);
+  const form = f.querySelector("form");
+  if (message) { const e = form.querySelector(".error"); e.textContent = message; e.hidden = false; }
+  form.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    key = form.k.value.trim();
+    try { localStorage.setItem("visits-key", key); } catch (e) {}
+    load();
+  });
+  app.append(f);
+}
+
+async function load() {
+  if (!key) return askKey();
+  const r = await fetch(`/api/visits?days=${state.days}&previews=${state.previews ? 1 : 0}`, { headers: { "X-Dashboard-Key": key }, cache: "no-store" });
+  if (r.status === 401) { try { localStorage.removeItem("visits-key"); } catch (e) {} key = null; return askKey("That key didn't work."); }
+  state.data = await r.json();
+  state.updated = new Date();
+  render();
+}
+
+function rank(items, label, extra) {
+  const max = Math.max(1, ...items.map((i) => i[1]));
+  if (!items.length) return `<p class="empty">No visits yet.</p>`;
+  return `<ol class="rank">${items.slice(0, 10).map(([name, n, x]) =>
+    `<li><span>${esc(name)}${extra ? extra(x) : ""}</span><b>${n}</b><span class="meter" aria-hidden="true"><i style="width:${(n / max) * 100}%"></i></span></li>`).join("")}</ol>`;
+}
+
+function count(list, fn) {
+  const m = new Map();
+  for (const s of list) { const k = fn(s); if (k == null) continue; const e = m.get(k) || [k, 0, s]; e[1]++; m.set(k, e); }
+  return [...m.values()].sort((a, b) => b[1] - a[1]);
+}
+
+function chart(sessions, days) {
+  const buckets = bucketsFor(sessions, days);
+  const W = 1000, H = 200, pad = 24, max = Math.max(1, ...buckets.map((b) => b.v));
+  const bw = (W - pad) / buckets.length;
+  const ticks = [0, Math.ceil(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  const every = Math.ceil(buckets.length / 8);
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H + 24}" role="img" aria-label="Visits per ${days === "1" ? "hour" : "day"}">
+    ${ticks.map((t) => { const y = H - (t / max) * (H - 10); return `<line x1="${pad}" x2="${W}" y1="${y}" y2="${y}" stroke="#e3e6ee"/><text x="0" y="${y + 4}" font-size="12" fill="#4a4d57">${t}</text>`; }).join("")}
+    ${buckets.map((b, i) => { const h = (b.v / max) * (H - 10); const x = pad + i * bw + 1; const w = Math.max(2, bw - 2);
+      return `<g data-i="${i}"><rect x="${x}" y="0" width="${w}" height="${H}" fill="transparent"/>${b.v ? `<path d="M${x},${H} v${-(h - 4)} q0,-4 4,-4 h${w - 8} q4,0 4,4 v${h - 4} z" fill="#1f3c9c"/>` : ""}${i % every === 0 ? `<text x="${x + w / 2}" y="${H + 18}" font-size="12" text-anchor="middle" fill="#4a4d57">${esc(b.label)}</text>` : ""}</g>`; }).join("")}
+  </svg><div class="tip"></div></div>`;
+}
+
+function render() {
+  const d = state.data;
+  const all = d.sessions;
+  const people = new Set(all.map((s) => s.visitor)).size;
+  const back = new Set(all.filter((s) => s.visitsByThisVisitor > 1).map((s) => s.visitor)).size;
+  const resume = all.filter((s) => s.clicks.some((c) => /resume/i.test(c))).length;
+  const demo = all.filter((s) => s.clicks.some((c) => /demo/i.test(c))).length;
+  const times = all.map((s) => s.seconds).filter((x) => x > 0).sort((a, b) => a - b);
+  const median = times.length ? times[Math.floor(times.length / 2)] : 0;
+
+  app.innerHTML = `
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Time range">${RANGES.map(([v, l]) => `<button type="button" data-days="${v}" aria-pressed="${state.days === v}">${l}</button>`).join("")}</div>
+      <label class="check"><input type="checkbox" id="previews" ${state.previews ? "checked" : ""}> Include Vercel preview links</label>
+      <span class="updated">Updated ${state.updated.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" })} &middot; <a href="#" id="refresh">Refresh</a></span>
+    </div>
+
+    <div class="tiles">
+      <div class="tile"><b>${all.length}</b><span>Visits</span></div>
+      <div class="tile"><b>${people}</b><span>Different people (by network address)</span></div>
+      <div class="tile"><b>${back}</b><span>Came back more than once</span></div>
+      <div class="tile"><b>${dur(median)}</b><span>Typical time on the page</span></div>
+      <div class="tile"><b>${demo}</b><span>Opened a live demo</span></div>
+      <div class="tile"><b>${resume}</b><span>Opened the resume</span></div>
+    </div>
+
+    <section class="box"><h2>Visits per ${state.days === "1" ? "hour" : "day"}</h2><div class="inner">${chart(all, state.days)}</div></section>
+
+    <div class="grid3">
+      <section class="box"><h2>Where they came from</h2><div class="inner">${rank(count(all, (s) => s.source))}
+        <p class="note">Add <b>?r=name</b> to the link you send (for example <b>/?r=acme</b>) and it shows up here as "tag: acme".</p></div></section>
+      <section class="box"><h2>Networks</h2><div class="inner">${d.network ? rank(count(all, (s) => s.network || "Unknown"), "", (s) => badge(s.networkKind)) : `<p class="empty">Network lookup isn't installed yet.</p>`}
+        <p class="note">A company network can point to the visitor's employer. Home and mobile providers don't say who it was.</p></div></section>
+      <section class="box"><h2>Places</h2><div class="inner">${d.geo ? rank(count(all, (s) => place(s))) : `<p class="empty">Location lookup isn't installed yet.</p>`}</div></section>
+    </div>
+
+    <section class="box"><h2>Every visit</h2>${all.length ? `<div class="tablewrap"><table>
+      <thead><tr><th>When</th><th>Place</th><th>Network</th><th>Source</th><th>Device</th><th>Time on page</th><th>Read down to</th><th>Clicked</th><th>Visit</th></tr></thead>
+      <tbody>${all.map((s) => `<tr class="${s.networkKind === "company" ? "company" : ""}">
+        <td>${fmtTime(s.start)}${s.preview ? "<small>preview link</small>" : ""}</td>
+        <td>${esc(place(s))}</td>
+        <td>${esc(s.network || "Unknown")}${badge(s.networkKind)}</td>
+        <td>${esc(s.source)}</td>
+        <td>${esc(s.device)}<small>${esc(s.browser)} on ${esc(s.os)}</small></td>
+        <td>${s.seconds ? dur(s.seconds) : "&lt; 5s"}</td>
+        <td>${s.scroll ? s.scroll + "%" : "Top only"}</td>
+        <td>${s.clicks.length ? esc(s.clicks.join(", ")) : "Nothing"}</td>
+        <td>${s.visitsByThisVisitor > 1 ? `#${s.visitsByThisVisitor} from this network` : "First"}</td>
+      </tr>`).join("")}</tbody></table></div>` : `<p class="empty">No visits in this range yet. Your own visits aren't counted on the browser where you opened /?notrack=1.</p>`}</section>
+
+    <p class="note">Bots that don't run the page's script aren't counted. IP addresses are never stored; location and network come from them at the moment of the visit.
+      IP geolocation by <a href="https://db-ip.com">DB-IP</a>, licensed CC BY 4.0. <a href="#" id="forget">Forget the key on this browser</a></p>`;
+
+  app.querySelectorAll("[data-days]").forEach((b) => b.addEventListener("click", () => { state.days = b.dataset.days; load(); }));
+  app.querySelector("#previews").addEventListener("change", (e) => { state.previews = e.target.checked; load(); });
+  app.querySelector("#refresh").addEventListener("click", (e) => { e.preventDefault(); load(); });
+  app.querySelector("#forget").addEventListener("click", (e) => { e.preventDefault(); try { localStorage.removeItem("visits-key"); } catch (x) {} key = null; askKey(); });
+
+  const box = app.querySelector(".chart");
+  const tip = box.querySelector(".tip");
+  const svg = box.querySelector("svg");
+  const buckets = bucketsFor(all, state.days);
+  svg.addEventListener("mousemove", (e) => {
+    const g = e.target.closest("g[data-i]");
+    if (!g) { tip.style.display = "none"; return; }
+    const i = Number(g.dataset.i);
+    const b = buckets[i];
+    const r = g.getBoundingClientRect(), br = box.getBoundingClientRect();
+    tip.textContent = `${b.label}: ${b.v} visit${b.v === 1 ? "" : "s"}`;
+    tip.style.left = `${r.left - br.left + r.width / 2}px`;
+    tip.style.top = `${e.clientY - br.top}px`;
+    tip.style.display = "block";
+  });
+  svg.addEventListener("mouseleave", () => (tip.style.display = "none"));
+}
+
+function bucketsFor(sessions, days) {
+  const n = days === "1" ? 24 : Number(days), now = Date.now(), out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now - i * (days === "1" ? 3600e3 : 86400e3));
+    out.push(days === "1"
+      ? { key: d.toLocaleString("en-US", { timeZone: TZ, day: "numeric", hour: "numeric" }), label: d.toLocaleString("en-US", { timeZone: TZ, weekday: "short", hour: "numeric" }), v: 0 }
+      : { key: d.toLocaleDateString("en-CA", { timeZone: TZ }), label: d.toLocaleDateString("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" }), v: 0 });
+  }
+  const idx = new Map(out.map((b, i) => [b.key, i]));
+  for (const s of sessions) {
+    const k = days === "1" ? new Date(s.start * 1000).toLocaleString("en-US", { timeZone: TZ, day: "numeric", hour: "numeric" }) : dayKey(s.start);
+    if (idx.has(k)) out[idx.get(k)].v++;
+  }
+  return out;
+}
+
+load();
+setInterval(() => { if (key && state.data && document.visibilityState === "visible") load(); }, 60000);
+</script>
+</body>
+</html>

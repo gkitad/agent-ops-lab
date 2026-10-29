@@ -32,6 +32,23 @@ systemctl enable opsmcp.service opsagent.service >/dev/null 2>&1
 systemctl restart opsmcp.service
 systemctl restart opsagent.service
 
+# Portfolio visit counter: free DB-IP Lite databases for city and network, refreshed monthly.
+GEO=/var/lib/agent-ops-lab/geoip
+mkdir -p "$GEO"
+for db in city asn; do
+  if [ ! -s "$GEO/$db.mmdb" ] || [ -n "$(find "$GEO/$db.mmdb" -mtime +35 2>/dev/null)" ]; then
+    for m in "$(date -u +%Y-%m)" "$(date -u -d '-1 month' +%Y-%m)"; do
+      if curl -fsS --max-time 120 -o "$GEO/$db.mmdb.gz" "https://download.db-ip.com/free/dbip-$db-lite-$m.mmdb.gz" \
+        && gunzip -f "$GEO/$db.mmdb.gz"; then
+        echo "geoip: $db $m"; break
+      fi
+      rm -f "$GEO/$db.mmdb.gz"
+    done
+  fi
+done
+systemctl enable visits.service >/dev/null 2>&1
+systemctl restart visits.service
+
 git -C "$ROOT" rev-parse HEAD > /var/lib/agent-ops-lab/deployed
 rm -f /etc/systemd/system/labctl.service.d/fallback.conf && systemctl daemon-reload
 systemctl restart labctl.service 2>/dev/null || true
