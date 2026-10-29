@@ -34,7 +34,7 @@ export type LabEvent = Base &
       }
     | ({ type: "usage" } & Usage)
     | ({ type: "report" } & Report)
-    | { type: "graded"; verdict: string; check: string; fault: string; resolved: boolean }
+    | { type: "graded"; verdict: string; check: string; fault: string; resolved: boolean; valid?: boolean }
     | { type: "end"; resolved: boolean; fault?: string; error?: string }
     | { type: "error"; text: string }
   );
@@ -46,6 +46,8 @@ export type IncidentSummary = {
   approval: "human" | "auto";
   model: string;
   resolved?: boolean | null;
+  valid?: boolean | null;
+  before?: string | null;
   steps?: number | null;
   fault?: string | null;
   faultChoice?: string;

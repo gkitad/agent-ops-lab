@@ -162,7 +162,9 @@ async def work(incident: dict, lock_fd):
             if verdict != "PASSED":
                 break
         incident["before"] = verdict
-        await emit("status", phase="investigating", text=f"Users now see: {verdict}. The agent is on it.", verdict=verdict)
+        text = (f"Users now see: {verdict}. The agent is on it." if verdict != "PASSED" else
+                "The fault hasn't shown up for users yet. The agent starts anyway; this incident won't count toward the score.")
+        await emit("status", phase="investigating", text=text, verdict=verdict)
 
         status, run = await operator("POST", "/runs", {"id": "inc-" + incident["id"], "approval": incident["approval"],
                                                         "label": f"incident {incident['id']}", "maxCalls": 60, "maxChanges": 5})
@@ -184,10 +186,11 @@ async def work(incident: dict, lock_fd):
                 await operator("DELETE", f"/runs/{incident['run']}")
             verdict, check = await synthetic()
             incident["after"] = verdict
-            incident["resolved"] = verdict == "PASSED" and incident.get("before") not in (None, "PASSED")
+            incident["valid"] = incident.get("before") not in (None, "PASSED")
+            incident["resolved"] = verdict == "PASSED" and incident["valid"]
             incident["fault"] = incident["_fault"]
             incident["finished"] = now()
-            await emit("graded", verdict=verdict, check=check, fault=incident["fault"], resolved=incident["resolved"])
+            await emit("graded", verdict=verdict, check=check, fault=incident["fault"], resolved=incident["resolved"], valid=incident["valid"])
             await emit("status", phase="restoring", text="Resetting the lab for the next visitor.")
             await sh("bash", FAULT, "restore-all")
             if (await synthetic())[0] != "PASSED":
@@ -269,8 +272,9 @@ async def listing(request: Request) -> JSONResponse:
     except OSError:
         names = []
     items = [i for i in (load(n[:-5]) for n in names[:30]) if i]
-    return JSONResponse([{k: i.get(k) for k in ("id", "created", "finished", "approval", "model", "resolved", "steps", "fault", "error")}
-                         | {"fault": i.get("fault") if i.get("finished") else None} for i in items])
+    return JSONResponse([{k: i.get(k) for k in ("id", "created", "finished", "approval", "model", "resolved", "steps", "error")}
+                         | {"fault": i.get("fault") if i.get("finished") else None,
+                            "valid": i.get("valid", i.get("before") not in (None, "PASSED"))} for i in items])
 
 
 def get_incident(request: Request) -> dict | None:

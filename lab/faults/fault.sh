@@ -65,8 +65,10 @@ inject() {
       ;;
     db-connections)
       change "reporting: new hourly sales export job enabled (CHG-2241)"
-      docker exec -d "$(cid db)" sh -c 'for i in $(seq 1 45); do psql -U reporting -d crm -q -c "/* sales-export */ SELECT pg_sleep(86400)" >/dev/null 2>&1 & done; wait'
-      sleep 3
+      # The export job opens more sessions than the pool allows; a few top-up rounds take any
+      # slot an app request was briefly holding. Sessions that can't get a slot exit.
+      docker exec -d "$(cid db)" sh -c 'for round in 1 2 3 4; do for i in $(seq 1 15); do psql -U reporting -d crm -q -c "/* sales-export */ SELECT pg_sleep(86400)" >/dev/null 2>&1 & done; sleep 2; done; wait'
+      sleep 8
       ;;
     *) echo "unknown fault: $1" >&2; exit 2 ;;
   esac

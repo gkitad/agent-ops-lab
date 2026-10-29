@@ -208,6 +208,7 @@ export default function Timeline({
   const end = useRef<HTMLLIElement>(null);
   const count = items.length;
   const pending = items.some((i) => i.kind === "call" && i.approval?.status === "pending");
+  const callRunning = items.some((i) => i.kind === "call" && !i.result);
   useEffect(() => {
     const el = end.current;
     const box = el?.closest("[data-scroll]") as HTMLElement | null;
@@ -243,7 +244,7 @@ export default function Timeline({
             return <CallItem key={item.key} item={item} canDecide={canDecide} onDecide={onDecide} />;
         }
       })}
-      {working && !pending && (
+      {working && !pending && !callRunning && (
         <li className={styles.tWorking}>
           <span className={styles.spinner} aria-hidden="true" /> Thinking
         </li>

@@ -4,6 +4,17 @@ import { useState } from "react";
 import styles from "@/app/ui.module.css";
 import type { Report } from "@/lib/api";
 
+/** Older reports (and non-strict models) sometimes sent a list as one string. */
+export function toList(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map(String);
+  if (typeof v === "string" && v.trim()) return v.split(/\n+/).map((l) => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
+  return [];
+}
+
+function clean(r: Report): Report {
+  return { ...r, evidence: toList(r.evidence), follow_ups: toList(r.follow_ups), suspicious_instructions: toList(r.suspicious_instructions) };
+}
+
 function markdown(r: Report, id: string, fault: string | null): string {
   return [
     `# Incident ${id}: ${r.summary}`,
@@ -28,8 +39,9 @@ function markdown(r: Report, id: string, fault: string | null): string {
   ].join("\n");
 }
 
-export default function ReportCard({ report, id, fault }: { report: Report; id: string; fault: string | null }) {
+export default function ReportCard({ report: raw, id, fault }: { report: Report; id: string; fault: string | null }) {
   const [copied, setCopied] = useState(false);
+  const report = clean(raw);
   async function copy() {
     try {
       await navigator.clipboard.writeText(markdown(report, id, fault));

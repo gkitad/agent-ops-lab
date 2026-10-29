@@ -117,7 +117,7 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
   }
 
   const busy = !!lab?.busy;
-  const finished = recent.filter((r) => r.finished && !r.error);
+  const finished = recent.filter((r) => r.finished && !r.error && r.valid !== false);
   const solved = finished.filter((r) => r.resolved).length;
 
   return (
@@ -221,7 +221,7 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
         <ol className={styles.flow}>
           <li>
             <strong>Your browser</strong>
-            <span>This page, on Vercel</span>
+            <span>This page, a static Next.js app</span>
           </li>
           <li>
             <strong>Incident service</strong>
@@ -263,8 +263,8 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
             {recent.slice(0, 12).map((r) => (
               <li key={r.id}>
                 <button onClick={() => onOpen(r.id)}>
-                  <span className={`${styles.pill} ${!r.finished ? styles.pillLive : r.resolved ? styles.pillOk : styles.pillBad}`}>
-                    {!r.finished ? "Live" : r.resolved ? "Resolved" : "Not resolved"}
+                  <span className={`${styles.pill} ${!r.finished ? styles.pillLive : r.valid === false ? styles.pillVoid : r.resolved ? styles.pillOk : styles.pillBad}`}>
+                    {!r.finished ? "Live" : r.valid === false ? "Didn't count" : r.resolved ? "Resolved" : "Not resolved"}
                   </span>
                   <span className={styles.recentFault}>{r.fault ? FAULTS[r.fault]?.title ?? r.fault : "Mystery outage"}</span>
                   <span className={styles.muted}>
@@ -362,10 +362,13 @@ function IncidentView({ id, onBack }: { id: string; onBack: () => void }) {
     if (host) touched.set(host, (touched.get(host) ?? 0) + 1);
   }
 
+  const invalid = graded?.valid === false || (!!graded && summary?.before === "PASSED");
   const status = graded
-    ? graded.resolved
-      ? "Resolved"
-      : "Not resolved"
+    ? invalid
+      ? "Didn't count"
+      : graded.resolved
+        ? "Resolved"
+        : "Not resolved"
     : events.length === 0
       ? "Connecting"
       : injecting
@@ -412,12 +415,14 @@ function IncidentView({ id, onBack }: { id: string; onBack: () => void }) {
       </section>
 
       {graded && (
-        <section className={`${styles.result} ${graded.resolved ? styles.resultOk : styles.resultBad}`} aria-live="polite">
+        <section className={`${styles.result} ${invalid ? styles.resultVoid : graded.resolved ? styles.resultOk : styles.resultBad}`} aria-live="polite">
           <div>
-            <p className={styles.resultHead}>{graded.resolved ? "Service restored" : "Service not restored"}</p>
+            <p className={styles.resultHead}>{invalid ? "The fault never reached users" : graded.resolved ? "Service restored" : "Service not restored"}</p>
             <p className={styles.resultText}>
-              The injected fault was <strong>{(FAULTS[graded.fault]?.title ?? graded.fault).toLowerCase()}</strong>. The final user
-              check, run by the lab and not the agent, {graded.verdict === "PASSED" ? "passed" : `ended ${graded.verdict}`}.
+              The injected fault was <strong>{(FAULTS[graded.fault]?.title ?? graded.fault).toLowerCase()}</strong>.{" "}
+              {invalid
+                ? "It didn't break the user check before the agent started, so this incident doesn't count toward the score."
+                : `The final user check, run by the lab and not the agent, ${graded.verdict === "PASSED" ? "passed" : `ended ${graded.verdict}`}.`}
             </p>
           </div>
           <dl className={styles.stats}>

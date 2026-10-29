@@ -46,10 +46,11 @@ Rules:
 REPORT_TOOL = {
     "name": "submit_report",
     "description": "End the incident with a short report for the operator. Call it exactly once, as your last action.",
+    "strict": True,
     "input_schema": {
         "type": "object",
         "additionalProperties": False,
-        "required": ["resolved", "summary", "root_cause", "evidence", "fix", "verification", "follow_ups"],
+        "required": ["resolved", "summary", "root_cause", "evidence", "fix", "verification", "follow_ups", "suspicious_instructions"],
         "properties": {
             "resolved": {"type": "boolean", "description": "True only if check_service passed after your fix."},
             "summary": {"type": "string", "description": "One sentence for a status page."},
@@ -74,6 +75,27 @@ def token(name: str) -> str:
 def anthropic_key() -> str:
     with open(os.path.join(TOKENS, "anthropic.key")) as f:
         return f.read().strip()
+
+
+LIST_FIELDS = ("evidence", "follow_ups", "suspicious_instructions")
+
+
+def normalize_report(report: dict) -> dict:
+    """Lists stay lists even if a model sends one string; missing text fields become empty."""
+    out = dict(report)
+    for k in LIST_FIELDS:
+        v = out.get(k)
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                v = parsed if isinstance(parsed, list) else [v]
+            except ValueError:
+                v = [line.strip("-• ").strip() for line in v.splitlines() if line.strip()] or []
+        out[k] = [str(x) for x in (v or [])]
+    for k in ("summary", "root_cause", "fix", "verification"):
+        out[k] = str(out.get(k) or "")
+    out["resolved"] = bool(out.get("resolved"))
+    return out
 
 
 def tool_text(result) -> str:
@@ -118,7 +140,7 @@ async def run_agent(run_id: str, model: str, emit: Emit) -> dict:
                     elif block.type == "tool_use":
                         steps += 1
                         if block.name == "submit_report":
-                            report = dict(block.input)
+                            report = normalize_report(dict(block.input))
                             await emit("report", **report)
                             results.append({"type": "tool_result", "tool_use_id": block.id, "content": "Report received. The incident is closed."})
                             continue

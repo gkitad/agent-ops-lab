@@ -1664,3 +1664,13 @@
     display: none;
   }
 }
+
+.pillVoid {
+  color: var(--muted);
+  background: var(--panel-strong);
+}
+
+.resultVoid {
+  border-color: var(--line-strong);
+  background: var(--panel);
+}
