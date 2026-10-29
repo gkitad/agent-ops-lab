@@ -155,8 +155,12 @@ async def work(incident: dict, lock_fd):
         code, out = await sh("bash", FAULT, incident["_fault"], "inject")
         if code != 0:
             raise RuntimeError(f"fault injection failed: {out[-300:]}")
-        await asyncio.sleep(4)
-        verdict, _ = await synthetic()
+        verdict = "PASSED"
+        for _ in range(10):  # some faults take a few seconds to show (DNS reload, cache expiry)
+            await asyncio.sleep(3)
+            verdict, _ = await synthetic()
+            if verdict != "PASSED":
+                break
         incident["before"] = verdict
         await emit("status", phase="investigating", text=f"Users now see: {verdict}. The agent is on it.", verdict=verdict)
 
@@ -303,7 +307,7 @@ async def events(request: Request):
                 if not line.strip():
                     continue
                 event = json.loads(line)
-                yield {"event": "message", "data": line}
+                yield {"data": line}
                 ended = ended or event["type"] == "end"
             if ended or await request.is_disconnected():
                 return

@@ -22,8 +22,12 @@ change() { # append to the change log the agent can read
 }
 
 write_zone() { # $1 = IP for crm.lab.internal
-  local serial
+  # The serial must always increase or CoreDNS ignores the new zone, even when
+  # two writes land in the same second (a restore right before an inject).
+  local serial old
   serial=$(date +%s)
+  old=$(grep -o 'SOA[^(]*( *[0-9]*' "$LAB/dns/runtime/lab.internal.db" 2>/dev/null | grep -o '[0-9]*$' || echo 0)
+  [ "${old:-0}" -ge "$serial" ] && serial=$((old + 1))
   sed -e "s/SERIAL/$serial/" -e "s/CRM_IP/$1/" "$LAB/dns/zone.template" > "$RUNTIME/zone.tmp"
   mv "$RUNTIME/zone.tmp" "$LAB/dns/runtime/lab.internal.db"
 }
