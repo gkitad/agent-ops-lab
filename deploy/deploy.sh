@@ -36,12 +36,26 @@ git -C "$ROOT" rev-parse HEAD > /var/lib/agent-ops-lab/deployed
 rm -f /etc/systemd/system/labctl.service.d/fallback.conf && systemctl daemon-reload
 systemctl restart labctl.service 2>/dev/null || true
 
+# Web app: static export of web/, rebuilt in a Node container only when web/ changes.
+WEBHASH=$(git -C "$ROOT" log -1 --format=%H -- web)
+if [ "$(cat /var/lib/agent-ops-lab/web.built 2>/dev/null)" != "$WEBHASH" ]; then
+  if docker run --rm -v "$ROOT/web:/app" -w /app node:22.11-alpine sh -c "npm ci --no-audit --no-fund --loglevel=error && npm run build" >/var/log/agent-ops-lab/web-build.log 2>&1; then
+    rm -rf /var/lib/agent-ops-lab/web.new && cp -r "$ROOT/web/out" /var/lib/agent-ops-lab/web.new
+    rm -rf /var/lib/agent-ops-lab/web && mv /var/lib/agent-ops-lab/web.new /var/lib/agent-ops-lab/web
+    echo "$WEBHASH" > /var/lib/agent-ops-lab/web.built
+    echo "web app built"
+  else
+    echo "web app build FAILED (keeping the previous one):"; tail -20 /var/log/agent-ops-lab/web-build.log
+  fi
+fi
+mkdir -p /var/lib/agent-ops-lab/web
+
 # Public HTTPS proxy (Caddy) in front of labctl and the incident service.
 IP=$(curl -fsS --max-time 5 http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address || hostname -I | awk '{print $1}')
 sed -e "s/PUBLIC_HOST/${IP//./-}.sslip.io/" -e "s/PUBLIC_IP/$IP/" "$ROOT/deploy/public/Caddyfile.template" > /var/lib/agent-ops-lab/Caddyfile
 docker rm -f public-proxy >/dev/null 2>&1 || true
 docker run -d -q --name public-proxy --restart unless-stopped --network host \
-  -v /var/lib/agent-ops-lab/Caddyfile:/etc/caddy/Caddyfile:ro -v caddy-data:/data caddy:2.8.4 >/dev/null
+  -v /var/lib/agent-ops-lab/Caddyfile:/etc/caddy/Caddyfile:ro -v /var/lib/agent-ops-lab/web:/srv/web:ro -v caddy-data:/data caddy:2.8.4 >/dev/null
 sleep 5
 if curl -fsS -o /dev/null --max-time 40 "http://$IP/api/lab"; then
   echo "public: https://${IP//./-}.sslip.io"

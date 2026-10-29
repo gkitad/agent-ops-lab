@@ -285,7 +285,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/mcptest":
             started = start_mcptest()
             return self.send(202 if started else 409, {"started": started, "note": "poll /api/status for results"})
-        if self.path == "/":
+        if self.path in ("/", "/status"):
             s = status()
             rows = "".join(
                 f"<tr><td>{html.escape(str(c.get('service')))}</td><td>{html.escape(str(c.get('state')))}</td><td>{html.escape(str(c.get('status')))}</td></tr>"
