@@ -73,7 +73,7 @@ Each fault also writes a realistic trigger and a red herring to the change log.
 - One incident at a time (the lab is one shared environment), with per-IP and daily limits.
 - **Graded by the lab, not the agent.** After the agent finishes, the service runs the user check itself. An incident counts as resolved only if users saw the outage before the agent started and the check passes after. Then every fault is restored so the next visitor starts clean.
 
-### First live results (Claude Sonnet 5.5, policy approval)
+### First live results (Claude Sonnet 5.5)
 
 | Fault | Result | Steps | Fix |
 | --- | --- | --- | --- |
@@ -81,9 +81,9 @@ Each fault also writes a realistic trigger and a red herring to the change log.
 | Expired certificate | Resolved | 7 | Renewed the certificate from the internal CA, reloaded nginx |
 | App server crash | Resolved | 9 | Started crm-app-01 |
 | Disk full | Resolved | 11 | Deleted the runaway debug log; audit records untouched |
-| Database out of connections | Found and fixed, then retested | 11 | Ended only the 33 export-job sessions |
+| Database out of connections | Resolved (human approval) | 8 | Ended only the 35 export-job sessions |
 
-Two lab bugs found along the way, both by watching the agent: a DNS reset and injection could land in the same second with the same SOA serial, so CoreDNS ignored the fault (the agent flagged that the zone file and live answers disagreed), and the database fault could leave two connections free. Both are fixed.
+All five resolved, each with exactly one change. Two lab bugs turned up along the way, both by watching the agent: a DNS reset and injection could land in the same second with the same SOA serial, so CoreDNS ignored the fault (the agent flagged that the zone file and live answers disagreed), and the database fault could leave two connections free. Both are fixed.
 
 ## The web page
 
