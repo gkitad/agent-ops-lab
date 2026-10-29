@@ -4,6 +4,8 @@ GET  /                 human-readable status page
 GET  /api/status       containers, active faults, synthetic check, last deploy
 GET  /api/selftest     inject every fault in turn, check it breaks the CRM,
                        restore it, check it recovers (one run at a time)
+GET  /api/keycheck     confirm the Anthropic API key in /etc/agent-ops-lab works
+                       (reports only the HTTP status, never the key)
 GET  /api/mcptest      run the MCP server's end-to-end test (opsmcp/selftest.py):
                        auth, command policy, approvals, budgets, and fixing all
                        five faults through MCP tools
@@ -90,6 +92,25 @@ def status():
         "selftest": selftest_state if selftest_state["results"] or selftest_state["running"] else read_json(SELFTEST_FILE),
         "mcptest": mcptest_state if mcptest_state["report"] or mcptest_state["running"] else read_json(MCPTEST_FILE),
     }
+
+
+def keycheck():
+    import urllib.error
+    import urllib.request
+    try:
+        with open("/etc/agent-ops-lab/anthropic.key") as f:
+            key = f.read().strip()
+    except OSError:
+        return {"ok": False, "error": "no key file"}
+    req = urllib.request.Request("https://api.anthropic.com/v1/models?limit=1",
+                                 headers={"x-api-key": key, "anthropic-version": "2023-06-01"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return {"ok": r.status == 200, "status": r.status, "keyLength": len(key)}
+    except urllib.error.HTTPError as e:
+        return {"ok": False, "status": e.code, "keyLength": len(key), "error": e.read().decode()[:300]}
+    except Exception as e:
+        return {"ok": False, "keyLength": len(key), "error": f"{type(e).__name__}: {e}"}
 
 
 def read_json(path):
@@ -191,6 +212,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/selftest":
             started = start_selftest()
             return self.send(202 if started else 409, {"started": started, "note": "poll /api/status for results"})
+        if self.path == "/api/keycheck":
+            return self.send(200, keycheck())
         if self.path == "/api/mcptest":
             started = start_mcptest()
             return self.send(202 if started else 409, {"started": started, "note": "poll /api/status for results"})
