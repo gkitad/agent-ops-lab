@@ -4,7 +4,9 @@ An AI agent that fixes **real** broken servers. A small CRM stack runs in Docker
 
 Built by [Anthony Jaimez](https://portfolio-eosin-delta-24.vercel.app/).
 
-> Work in progress. Stages 1 and 2 are live: the real lab with fault injection, and the MCP server the agent works through. The agent, web UI and benchmark come next.
+**Live:** https://138-197-164-83.sslip.io (pick a fault, watch Claude work it, approve or deny its changes)
+
+> Stages 1-3 are live: the real lab, the MCP server, and the agent with its web page. A benchmark across Claude models and prompt-injection traps come next.
 
 ## The lab
 
@@ -60,9 +62,37 @@ Each fault also writes a realistic trigger and a red herring to the change log.
 - `opsmcp/test_policy.py`: 68 allow/deny cases for the command policy, run on every deploy; a failure stops the deploy.
 - `opsmcp/selftest.py`: 48 end-to-end checks over real MCP against the live lab, covering auth, policy, all three approval modes, budgets, the audit log, and fixing each of the five faults through the change tools. Trigger it with `/api/mcptest`.
 
+## The agent
+
+`opsagent/agent.py` is Claude (Sonnet 5.5 by default) working the incident through the MCP tools. It starts with only the users' complaint and is never told which fault was injected. It narrates each step in one sentence, makes the smallest change the evidence supports, re-checks, and ends by calling `submit_report` (strict schema: root cause, evidence, fix, verification, follow-ups, and any instructions it found in data and ignored). It runs one tool call at a time, with prompt caching, a 40-step cap and a 15-minute cap.
+
+`opsagent/service.py` is the public incident API behind Caddy:
+
+- `POST /api/incidents` injects a real fault (random or chosen), registers a run on the MCP server and starts the agent. It returns an approver key, so only the person who started the incident can approve its changes.
+- `GET /api/incidents/{id}/events` streams the whole timeline over Server-Sent Events, replayed and then live, so anyone can watch or replay an incident by link.
+- One incident at a time (the lab is one shared environment), with per-IP and daily limits.
+- **Graded by the lab, not the agent.** After the agent finishes, the service runs the user check itself. An incident counts as resolved only if users saw the outage before the agent started and the check passes after. Then every fault is restored so the next visitor starts clean.
+
+### First live results (Claude Sonnet 5.5, policy approval)
+
+| Fault | Result | Steps | Fix |
+| --- | --- | --- | --- |
+| Bad DNS record | Resolved | 6 | Repointed `crm.lab.internal` to lb-01 |
+| Expired certificate | Resolved | 7 | Renewed the certificate from the internal CA, reloaded nginx |
+| App server crash | Resolved | 9 | Started crm-app-01 |
+| Disk full | Resolved | 11 | Deleted the runaway debug log; audit records untouched |
+| Database out of connections | Found and fixed, then retested | 11 | Ended only the 33 export-job sessions |
+
+Two lab bugs found along the way, both by watching the agent: a DNS reset and injection could land in the same second with the same SOA serial, so CoreDNS ignored the fault (the agent flagged that the zone file and live answers disagreed), and the database fault could leave two connections free. Both are fixed.
+
+## The web page
+
+`web/` is a static Next.js app, served by the lab's Caddy (and deployable to Vercel as is). It shows the live lab state, lets a visitor start an incident with human or policy approval, renders the agent's timeline as it happens (commands, blocked attempts, approval cards with an optional note for the agent), and ends with the lab's grade and the agent's report, which can be copied as Markdown.
+
 ## Operating the server
 
 - `deploy/bootstrap.sh` sets up a fresh Ubuntu 24.04 droplet once.
 - `lab-update.timer` checks `main` every minute and redeploys new commits with every fault restored.
-- `labctl` on port 80 shows status (`/api/status`) and runs a self-test (`/api/selftest`) that injects each fault, confirms the CRM breaks, restores it and confirms it recovers.
-- `opsmcp.service` runs the MCP server; its tokens are generated on the server in `/etc/agent-ops-lab` and never leave it.
+- `labctl` (behind Caddy at `/status` and `/api/*`) shows status (`/api/status`) and runs a self-test (`/api/selftest`) that injects each fault, confirms the CRM breaks, restores it and confirms it recovers.
+- `opsmcp.service` runs the MCP server and `opsagent.service` the incident API; tokens are generated on the server in `/etc/agent-ops-lab` and never leave it. The Anthropic API key is placed there by hand.
+- Caddy (`deploy/public/Caddyfile.template`) gets a Let's Encrypt certificate for `<ip>.sslip.io`, so HTTPS works without buying a domain. If it fails to start, the deploy falls back to serving the status page on port 80.
