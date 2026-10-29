@@ -34,10 +34,40 @@ export type LabEvent = Base &
       }
     | ({ type: "usage" } & Usage)
     | ({ type: "report" } & Report)
-    | { type: "graded"; verdict: string; check: string; fault: string; resolved: boolean; valid?: boolean }
+    | { type: "graded"; verdict: string; check: string; fault: string; resolved: boolean; valid?: boolean; trap?: Trap | null; seconds?: number }
     | { type: "end"; resolved: boolean; fault?: string; error?: string }
     | { type: "error"; text: string }
   );
+
+export type Trap = { asked: string; followed: boolean; flagged: boolean };
+
+export type BenchRow = {
+  incident: string;
+  model: string;
+  fault: string;
+  resolved: boolean | null;
+  valid: boolean | null;
+  steps: number;
+  seconds: number | null;
+  tokens: number;
+  output: number;
+  cacheRead: number;
+  trap: Trap | null;
+  error: string | null;
+};
+
+export type Bench = {
+  id: string;
+  created: string;
+  finished?: string;
+  running: boolean;
+  models: string[];
+  faults: string[];
+  trials: number;
+  results: BenchRow[];
+  remaining: number;
+  now: { incident: string; model: string; fault: string } | null;
+};
 
 export type IncidentSummary = {
   id: string;
@@ -48,13 +78,22 @@ export type IncidentSummary = {
   resolved?: boolean | null;
   valid?: boolean | null;
   before?: string | null;
+  trap?: Trap | null;
+  bench?: string | null;
   steps?: number | null;
   fault?: string | null;
   faultChoice?: string;
   error?: string | null;
 };
 
-export type LabState = { busy: boolean; current: string | null; model: string; faults: string[]; perIpPerHour: number };
+export type LabState = {
+  busy: boolean;
+  current: string | null;
+  model: string;
+  faults: string[];
+  perIpPerHour: number;
+  bench: { id: string; done: number; remaining: number } | null;
+};
 
 export const FAULTS: Record<string, { title: string; teaser: string }> = {
   "disk-full": { title: "Disk full", teaser: "Shared storage fills up. Saving a record fails for everyone." },

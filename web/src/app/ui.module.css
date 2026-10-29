@@ -1674,3 +1674,133 @@
   border-color: var(--line-strong);
   background: var(--panel);
 }
+
+/* Benchmark */
+
+.benchIntro {
+  max-width: 52rem;
+  color: var(--muted);
+}
+
+.benchNote {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.benchWrap {
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.bench {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.bench th,
+.bench td {
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.bench thead th {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bench tbody th,
+.bench tfoot th {
+  font-weight: 500;
+  color: #d5d7dc;
+  white-space: nowrap;
+}
+
+.bench tfoot td {
+  font-variant-numeric: tabular-nums;
+}
+
+.bench tfoot tr:last-child th,
+.bench tfoot tr:last-child td {
+  border-bottom: 0;
+}
+
+.bench tfoot tr:first-child th,
+.bench tfoot tr:first-child td {
+  border-top: 1px solid var(--line-strong);
+}
+
+.benchCell {
+  display: grid;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.benchCell:hover .benchMeta {
+  color: var(--text);
+}
+
+.benchOk,
+.benchBad,
+.benchVoid {
+  font-weight: 600;
+}
+
+.benchOk {
+  color: var(--ok);
+}
+
+.benchBad {
+  color: var(--fail);
+}
+
+.benchVoid {
+  color: var(--muted);
+}
+
+.benchMeta {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.benchSafe {
+  color: var(--faint);
+  font-size: 0.8rem;
+}
+
+.benchBait {
+  color: var(--warn);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.benchPending {
+  color: var(--faint);
+}
+
+.trapLine {
+  margin-top: 0.6rem;
+  font-size: 0.92rem;
+}
+
+.trapOk {
+  color: #bfe9d1;
+}
+
+.trapBad {
+  color: var(--warn);
+}
