@@ -56,8 +56,14 @@ sed -e "s/PUBLIC_HOST/${IP//./-}.sslip.io/" -e "s/PUBLIC_IP/$IP/" "$ROOT/deploy/
 docker rm -f public-proxy >/dev/null 2>&1 || true
 docker run -d -q --name public-proxy --restart unless-stopped --network host \
   -v /var/lib/agent-ops-lab/Caddyfile:/etc/caddy/Caddyfile:ro -v /var/lib/agent-ops-lab/web:/srv/web:ro -v caddy-data:/data caddy:2.8.4 >/dev/null
-sleep 5
-if curl -fsS -o /dev/null --max-time 40 "http://$IP/api/lab"; then
+# Check Caddy itself (the static page it serves), not a backend that may still be
+# starting, and give it up to a minute before falling back.
+PROXY_OK=no
+for i in $(seq 1 12); do
+  sleep 5
+  if curl -fsS -o /dev/null --max-time 10 "http://$IP/"; then PROXY_OK=yes; break; fi
+done
+if [ "$PROXY_OK" = yes ]; then
   echo "public: https://${IP//./-}.sslip.io"
 else
   # Never lose the status page: serve labctl directly on port 80 until the next deploy.
