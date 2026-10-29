@@ -7,6 +7,7 @@ GET  /api/selftest     inject every fault in turn, check it breaks the CRM,
 GET  /api/keycheck     confirm the Anthropic API key in /etc/agent-ops-lab works
                        (reports only the HTTP status, never the key)
 POST /api/admin/incident  start an incident without the public rate limit
+POST /api/admin/bench  start a benchmark (models x faults x trials)
                        (X-Admin-Key header; only its SHA-256 is in the repo)
 GET  /api/mcptest      run the MCP server's end-to-end test (opsmcp/selftest.py):
                        auth, command policy, approvals, budgets, and fixing all
@@ -240,10 +241,10 @@ def admin_ok(key: str) -> bool:
     return bool(key) and hmac.compare_digest(hashlib.sha256(key.encode()).hexdigest(), expected)
 
 
-def admin_incident(body: bytes):
+def admin_incident(body: bytes, target: str = "/api/incidents"):
     import urllib.error
     import urllib.request
-    req = urllib.request.Request("http://127.0.0.1:8090/api/incidents", data=body, method="POST",
+    req = urllib.request.Request("http://127.0.0.1:8090" + target, data=body, method="POST",
                                  headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
@@ -266,11 +267,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_POST(self):
-        if self.path == "/api/admin/incident":
+        targets = {"/api/admin/incident": "/api/incidents", "/api/admin/bench": "/api/bench"}
+        if self.path in targets:
             if not admin_ok(self.headers.get("X-Admin-Key", "")):
                 return self.send(403, {"error": "forbidden"})
             length = min(int(self.headers.get("Content-Length") or 0), 4096)
-            code, data = admin_incident(self.rfile.read(length) or b"{}")
+            code, data = admin_incident(self.rfile.read(length) or b"{}", targets[self.path])
             return self.send(code, data)
         self.send(404, {"error": "not found"})
 
