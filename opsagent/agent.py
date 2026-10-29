@@ -71,13 +71,18 @@ def token(name: str) -> str:
         return f.read().strip()
 
 
+def anthropic_key() -> str:
+    with open(os.path.join(TOKENS, "anthropic.key")) as f:
+        return f.read().strip()
+
+
 def tool_text(result) -> str:
     return "\n".join(getattr(c, "text", "") for c in result.content) or "(no output)"
 
 
 async def run_agent(run_id: str, model: str, emit: Emit) -> dict:
     """Work the incident until submit_report, the step cap or the time cap. Returns the report (or None) and usage."""
-    claude = AsyncAnthropic(api_key=token("anthropic"), max_retries=4, timeout=120)
+    claude = AsyncAnthropic(api_key=anthropic_key(), max_retries=4, timeout=120)
     http = httpx2.AsyncClient(headers={"Authorization": f"Bearer {token('agent')}", "X-Run-Id": run_id},
                               timeout=httpx2.Timeout(30, read=400))
     usage = {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "requests": 0}
