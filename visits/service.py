@@ -105,9 +105,26 @@ HOME_ISP = re.compile(
 )
 CLOUD = re.compile(
     r"amazon|aws|google cloud|google-cloud|googl|microsoft azure|azure|digitalocean|linode|akamai|ovh|hetzner|vultr|"
-    r"oracle cloud|cloudflare|fastly|leaseweb|choopa|contabo|scaleway|alibaba|tencent|m247|datacamp|hosting|server|data center|datacenter",
+    r"oracle cloud|cloudflare|fastly|leaseweb|choopa|contabo|scaleway|alibaba|tencent|m247|datacamp|hosting|server|data center|datacenter|"
+    r"hostroyale|clouvider|constant company|internet archive|facebook|meta platforms|solid systems|colocrossing|psychz|quadranet|"
+    r"zenlayer|g-core|gcore|cogent|hurricane electric|stark industries|aeza|frantech|buyvm|servers\.com",
     re.I,
 )
+VPN = re.compile(r"proton|nordvpn|tefincom|mullvad|express ?vpn|surfshark|private internet access|windscribe|ipvanish|cyberghost", re.I)
+
+
+def classify(network: str | None) -> str | None:
+    """company: worth a look. home: a home or mobile ISP. vpn: a person hiding where they are.
+    cloud: data centers, crawlers and link previews; almost always a bot."""
+    if not network:
+        return None
+    if VPN.search(network):
+        return "vpn"
+    if CLOUD.search(network):
+        return "cloud"
+    if HOME_ISP.search(network):
+        return "home"
+    return "company"
 
 
 def lookup(ip: str) -> dict:
@@ -126,7 +143,7 @@ def lookup(ip: str) -> dict:
         pass
     n = out["network"] or ""
     if n:
-        out["network_kind"] = "cloud" if CLOUD.search(n) else "home" if HOME_ISP.search(n) else "company"
+        out["network_kind"] = classify(n)
     return out
 
 
@@ -225,7 +242,7 @@ def sessions_since(since: float, previews: bool) -> list[dict]:
             if s is None:
                 s = by[e["session"]] = {
                     "start": e["ts"], "visitor": e["visitor"], "city": e["city"], "region": e["region"], "country": e["country"],
-                    "network": e["network"], "networkKind": e["network_kind"], "source": e["tag"] and f"tag: {e['tag']}" or e["referrer"] or "Direct",
+                    "network": e["network"], "networkKind": classify(e["network"]), "source": e["tag"] and f"tag: {e['tag']}" or e["referrer"] or "Direct",
                     "tag": e["tag"], "referrer": e["referrer"], "device": e["device"], "browser": e["browser"], "os": e["os"],
                     "preview": bool(e["preview"]), "seconds": 0, "scroll": 0, "clicks": [],
                 }
