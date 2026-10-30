@@ -78,6 +78,15 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
   const [lab, setLab] = useState<LabState | null>(null);
   const [recent, setRecent] = useState<IncidentSummary[]>([]);
   const [bench, setBench] = useState<Bench | null>(null);
+  const jumped = useRef(false);
+  // The benchmark section only exists once its data loads, so a #benchmark link
+  // (the portfolio uses one) has to scroll there after that.
+  useEffect(() => {
+    if (bench && !jumped.current && window.location.hash === "#benchmark") {
+      jumped.current = true;
+      requestAnimationFrame(() => document.getElementById("benchmark")?.scrollIntoView());
+    }
+  }, [bench]);
   const [approval, setApproval] = useState<"human" | "auto">("human");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -264,7 +273,7 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
       </section>
 
       {bench && bench.results.length > 0 && (
-        <section className={styles.recent} aria-labelledby="bench-title">
+        <section id="benchmark" className={styles.recent} aria-labelledby="bench-title">
           <h2 id="bench-title" className={styles.sectionTitle}>
             Benchmark{" "}
             <span className={styles.muted}>
