@@ -84,7 +84,7 @@ function Landing({ onOpen }: { onOpen: (id: string, key?: string) => void }) {
   useEffect(() => {
     if (bench && !jumped.current && window.location.hash === "#benchmark") {
       jumped.current = true;
-      requestAnimationFrame(() => document.getElementById("benchmark")?.scrollIntoView());
+      setTimeout(() => document.getElementById("benchmark")?.scrollIntoView(), 50);
     }
   }, [bench]);
   const [approval, setApproval] = useState<"human" | "auto">("human");
