@@ -19,7 +19,7 @@ import {
   type Usage,
 } from "@/lib/api";
 
-const PORTFOLIO = "https://portfolio-eosin-delta-24.vercel.app/";
+const PORTFOLIO = "https://www.anthonyjaimez.com/";
 const SOURCE = "https://github.com/gkitad/agent-ops-lab";
 
 const HOSTS = [

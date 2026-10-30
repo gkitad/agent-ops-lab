@@ -2,7 +2,7 @@
 
 An AI agent that fixes **real** broken servers. A small CRM stack runs in Docker on a live Ubuntu server, with a load balancer, two app servers, PostgreSQL, DNS and an office client, and real faults are injected into it: a full disk, a crashed process, a bad DNS record, an expired certificate, exhausted database connections. The agent connects through an MCP server with an allowlist, approvals and an audit log, finds the cause from real logs and commands, and fixes it.
 
-Built by [Anthony Jaimez](https://portfolio-eosin-delta-24.vercel.app/).
+Built by [Anthony Jaimez](https://www.anthonyjaimez.com/).
 
 **Live:** https://138-197-164-83.sslip.io (pick a fault, watch Claude work it, approve or deny its changes)
 

@@ -1,4 +1,4 @@
-"""Visit counter for my portfolio (portfolio-eosin-delta-24.vercel.app).
+"""Visit counter for my portfolio (www.anthonyjaimez.com).
 
 The portfolio page sends small beacons here: one when it opens, one when the
 visitor leaves (time on page, how far they scrolled) and one per click on a
@@ -40,7 +40,8 @@ KEY_HASH = open(os.path.join(HERE, "dashboard.sha256")).read().strip()
 os.makedirs(DATA, exist_ok=True)
 
 # Origins allowed to send beacons: the portfolio and its Vercel previews.
-ORIGIN_OK = re.compile(r"^https://(portfolio-eosin-delta-24\.vercel\.app|portfolio-[a-z0-9-]+-gkitad\.vercel\.app)$")
+ORIGIN_OK = re.compile(r"^https://((www\.)?anthonyjaimez\.com|portfolio-eosin-delta-24\.vercel\.app|portfolio-[a-z0-9-]+-gkitad\.vercel\.app)$")
+PRODUCTION_HOSTS = {"www.anthonyjaimez.com", "anthonyjaimez.com", "portfolio-eosin-delta-24.vercel.app"}
 BOT_UA = re.compile(r"bot|crawl|spider|slurp|preview|headless|lighthouse|pingdom|uptime|monitor|curl|wget|python|httpclient", re.I)
 
 # --- storage ---------------------------------------------------------------
@@ -154,7 +155,7 @@ def ref_domain(ref: str | None) -> str | None:
         return None
     host = urlparse(ref).hostname or ""
     host = host.removeprefix("www.")
-    if host.endswith("vercel.app") and "portfolio" in host:
+    if (host.endswith("vercel.app") and "portfolio" in host) or host == "anthonyjaimez.com":
         return None  # moving around the site itself
     return {"lnkd.in": "linkedin.com", "com.linkedin.android": "linkedin.com", "t.co": "x.com"}.get(host, host) or None
 
@@ -196,7 +197,7 @@ async def beacon(request: Request) -> Response:
             int(body["sec"]) if str(body.get("sec", "")).isdigit() else None,
             int(body["sc"]) if str(body.get("sc", "")).isdigit() else None,
             geo.get("city"), geo.get("region"), geo.get("country"), geo.get("network"), geo.get("network_kind"),
-            dev, browser, os_, 0 if host == "portfolio-eosin-delta-24.vercel.app" else 1,
+            dev, browser, os_, 0 if host in PRODUCTION_HOSTS else 1,
         ),
     )
     return Response(status_code=204)
